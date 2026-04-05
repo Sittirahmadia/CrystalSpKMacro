@@ -58,7 +58,7 @@ CrystalSpKMacro/
 ├── macros/            # Macro modules
 │   ├── crystal/       # Crystal PvP macros
 │   ├── sword/         # Sword macros
-│   ├── ahk/           # AutoHotKey scripts
+│   ├── ahk/           # AutoHotkey scripts
 │   ├── engine.js      # Macro engine
 │   ├── triggerbot.js  # Triggerbot module
 │   └── ...
