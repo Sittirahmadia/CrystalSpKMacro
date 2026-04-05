@@ -431,7 +431,7 @@ function createWindow() {
     _appendRuntimeLog('window unresponsive')
   })
 
-  win.webContents.once('did-finish-load', () => {
+  win.webContents.once('did-finish-load', async () => {
     setTimeout(() => {
       if (!win || win.isDestroyed()) return
       const ksState = _getKeysenderState()
