@@ -17,38 +17,20 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'npm'
+      - name: Download nlohmann/json
+        run: |
+          mkdir -p vendor/nlohmann
+          curl -sL "https://github.com/nlohmann/json/releases/download/v3.11.3/json.hpp" -o vendor/nlohmann/json.hpp
 
-      - name: Install dependencies
-        run: npm install
+      - name: Configure CMake
+        run: cmake -S . -B build -G "Visual Studio 17 2022" -A x64 -DCMAKE_BUILD_TYPE=Release
 
-      - name: Build Electron app
-        run: npm run build
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build
+        run: cmake --build build --config Release --parallel
 
-      - name: Upload installer artifact
+      - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: CrystalSpKMacro-installer
-          path: dist/*.exe
-          if-no-files-found: warn
-
-      - name: Upload portable artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: CrystalSpKMacro-portable
-          path: dist/CrystalSpKMacro-portable.exe
-          if-no-files-found: warn
-
-      - name: Upload to release
-        if: github.event_name == 'release'
-        uses: softprops/action-gh-release@v2
-        with:
-          files: dist/*.exe
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          name: CrystalSpKMacro-native
+          path: build/Release/CrystalSpKMacro.exe
+          if-no-files-found: error

@@ -1,9 +1,29 @@
-node_modules/
-dist/
-*.log
-.env
+# Build
+build/
+out/
+cmake-build-*/
+*.exe
+*.obj
+*.o
+*.lib
+*.pdb
+*.ilk
+*.exp
+
+# IDE
+.vs/
+.vscode/
+*.suo
+*.user
+*.sln.docstates
+CMakeSettings.json
+
+# OS
 .DS_Store
 Thumbs.db
 *.swp
 *.swo
 *~
+
+# Vendor (downloaded, not tracked)
+vendor/json.hpp

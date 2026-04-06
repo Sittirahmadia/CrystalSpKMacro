@@ -1,0 +1,23 @@
+#include "../src/resource.h"
+#include <windows.h>
+
+// Version info
+VS_VERSION_INFO VERSIONINFO
+FILEVERSION     1,2,0,0
+PRODUCTVERSION  1,2,0,0
+BEGIN
+    BLOCK "StringFileInfo"
+    BEGIN
+        BLOCK "040904b0"
+        BEGIN
+            VALUE "FileDescription",  "CrystalSpKMacro"
+            VALUE "FileVersion",      "1.2.0"
+            VALUE "ProductName",      "CrystalSpKMacro"
+            VALUE "ProductVersion",   "1.2.0"
+        END
+    END
+    BLOCK "VarFileInfo"
+    BEGIN
+        VALUE "Translation", 0x0409, 1200
+    END
+END
