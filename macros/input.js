@@ -377,25 +377,24 @@ async function runSA(anchorKey, glowstoneKey, explodeKey, delay) {
 }
 
 // ── DA — Double Anchor ────────────────────────────────────────────────────────
-// Sequence: anchor→rclick (place 1st) → glowstone→rclick (charge 1st) →
-//           anchor→rclick (explode 1st + airplace 2nd) →
-//           glowstone→rclick (charge 2nd) → explodeSlot→rclick (detonate 2nd)
+// Two full SA cycles back-to-back, separated by delay between them.
+// FIX: Added extra rClickFixed after glowstone charge to ensure both anchors
+// detonate correctly — matches the AHK sequence (3 right-clicks per cycle):
+//   place anchor → charge glowstone → confirm charge → detonate
 async function runDA(anchorKey, glowstoneKey, explodeKey, delay) {
   await startAnchorMacro('da', async tok => {
     const d   = Math.max(0, Number(delay))
     const det = (explodeKey && explodeKey !== 'None') ? explodeKey : anchorKey
+    const cycleGap = d + 30  // extra buffer to avoid glowstone replacing the next anchor
 
     focusLock.focusMc()
-    // 1. Place first anchor
-    await slotClick(anchorKey,    tok); await sleep(d, tok)
-    // 2. Charge first anchor with glowstone
-    await slotClick(glowstoneKey, tok); await sleep(d, tok)
-    // 3. Switch back to anchor → explodes 1st + immediately airplaces 2nd
-    await slotClick(anchorKey,    tok); await sleep(d, tok)
-    // 4. Charge second anchor with glowstone
-    await slotClick(glowstoneKey, tok); await sleep(d, tok)
-    // 5. Detonate second anchor with explode slot
-    await slotClick(det,          tok)
+    for (let i = 0; i < 2; i++) {
+      await slotClick(anchorKey,    tok); await sleep(d, tok)
+      await slotClick(glowstoneKey, tok); await sleep(d, tok)
+      await rClickFixed(tok);             await sleep(d, tok)  // extra confirm-charge click
+      await slotClick(det,          tok)
+      if (i === 0) await sleep(cycleGap, tok)
+    }
   })
 }
 
