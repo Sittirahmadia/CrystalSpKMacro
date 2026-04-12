@@ -83,10 +83,12 @@ endif()
 
 # ─── Compiler flags ──────────────────────────────────────
 if(MSVC)
-    target_compile_options(${PROJECT_NAME} PRIVATE /W4 /O2 /GL)
-    target_link_options(${PROJECT_NAME} PRIVATE /LTCG /OPT:REF /OPT:ICF)
+    target_compile_options(${PROJECT_NAME} PRIVATE /W4)
+    target_compile_options(${PROJECT_NAME} PRIVATE $<$<CONFIG:Release>:/O2 /GL>)
+    target_link_options(${PROJECT_NAME} PRIVATE $<$<CONFIG:Release>:/LTCG /OPT:REF /OPT:ICF>)
 else()
-    target_compile_options(${PROJECT_NAME} PRIVATE -Wall -Wextra -O2)
+    target_compile_options(${PROJECT_NAME} PRIVATE -Wall -Wextra)
+    target_compile_options(${PROJECT_NAME} PRIVATE $<$<CONFIG:Release>:-O2>)
 endif()
 
 target_compile_definitions(${PROJECT_NAME} PRIVATE
