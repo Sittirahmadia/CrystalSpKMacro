@@ -6,10 +6,47 @@
 #include "security/stealth.h"
 #include <random>
 #include <dwmapi.h>
-#include <winternl.h>
 
 #pragma comment(lib, "dwmapi.lib")
 #pragma comment(lib, "ntdll.lib")
+
+// ─── Custom PEB structures (SDK winternl.h is incomplete) ──
+// We define our own full version to access BaseDllName
+typedef struct _NOQWD_UNICODE_STRING {
+    USHORT Length;
+    USHORT MaximumLength;
+    PWSTR  Buffer;
+} NOQWD_UNICODE_STRING;
+
+typedef struct _NOQWD_LDR_DATA_TABLE_ENTRY {
+    LIST_ENTRY InLoadOrderLinks;
+    LIST_ENTRY InMemoryOrderLinks;
+    LIST_ENTRY InInitializationOrderLinks;
+    PVOID      DllBase;
+    PVOID      EntryPoint;
+    ULONG      SizeOfImage;
+    NOQWD_UNICODE_STRING FullDllName;
+    NOQWD_UNICODE_STRING BaseDllName;
+    // ... more fields follow but we don't need them
+} NOQWD_LDR_DATA_TABLE_ENTRY;
+
+typedef struct _NOQWD_PEB_LDR_DATA {
+    ULONG      Length;
+    BOOLEAN    Initialized;
+    HANDLE     SsHandle;
+    LIST_ENTRY InLoadOrderModuleList;
+    LIST_ENTRY InMemoryOrderModuleList;
+    LIST_ENTRY InInitializationOrderModuleList;
+} NOQWD_PEB_LDR_DATA;
+
+typedef struct _NOQWD_PEB {
+    BYTE                 Reserved1[2];
+    BYTE                 BeingDebugged;
+    BYTE                 Reserved2[1];
+    PVOID                Reserved3[2];
+    NOQWD_PEB_LDR_DATA* Ldr;
+    // ... more fields follow
+} NOQWD_PEB;
 
 namespace noqwd {
 
@@ -64,7 +101,6 @@ void Stealth::set_debug_privilege() {
 
 // ─── Erase PE Header ───────────────────────────────────
 void Stealth::erase_pe_header() {
-    // Overwrite the PE header in memory to hinder static analysis
     HMODULE base = GetModuleHandleW(nullptr);
     if (!base) return;
 
@@ -88,33 +124,30 @@ void Stealth::uncloak_window(HWND hwnd) {
 
 // ─── Module Name Spoofing ───────────────────────────────
 void Stealth::spoof_module_name(const std::wstring& fake_name) {
-    // Access the PEB (Process Environment Block) to rename module
-    // This uses documented NtQueryInformationProcess or direct TEB access
+    // Access PEB directly via TEB to walk the module list
 
 #if defined(_WIN64)
-    // 64-bit: PEB is at TEB + 0x60
-    PPEB peb = reinterpret_cast<PPEB>(__readgsqword(0x60));
+    NOQWD_PEB* peb = reinterpret_cast<NOQWD_PEB*>(__readgsqword(0x60));
 #else
-    // 32-bit: PEB is at TEB + 0x30
-    PPEB peb = reinterpret_cast<PPEB>(__readfsdword(0x30));
+    NOQWD_PEB* peb = reinterpret_cast<NOQWD_PEB*>(__readfsdword(0x30));
 #endif
 
     if (!peb || !peb->Ldr) return;
 
     // Walk the InLoadOrderModuleList
-    PLIST_ENTRY head = &peb->Ldr->InMemoryOrderModuleList;
+    PLIST_ENTRY head = &peb->Ldr->InLoadOrderModuleList;
     PLIST_ENTRY curr = head->Flink;
 
     while (curr != head) {
-        PLDR_DATA_TABLE_ENTRY entry = CONTAINING_RECORD(
-            curr, LDR_DATA_TABLE_ENTRY, InMemoryOrderLinks);
+        auto* entry = CONTAINING_RECORD(
+            curr, NOQWD_LDR_DATA_TABLE_ENTRY, InLoadOrderLinks);
 
         // First entry is usually the main executable
         if (entry->FullDllName.Buffer && entry->BaseDllName.Buffer) {
-            // Overwrite the base DLL name with fake name
-            size_t copy_len = (fake_name.size() < entry->BaseDllName.MaximumLength / sizeof(wchar_t))
+            size_t max_chars = entry->BaseDllName.MaximumLength / sizeof(wchar_t);
+            size_t copy_len = (fake_name.size() < max_chars)
                 ? fake_name.size()
-                : (entry->BaseDllName.MaximumLength / sizeof(wchar_t) - 1);
+                : (max_chars - 1);
 
             wmemcpy(entry->BaseDllName.Buffer, fake_name.c_str(), copy_len);
             entry->BaseDllName.Buffer[copy_len] = L'\0';
@@ -129,7 +162,6 @@ void Stealth::spoof_module_name(const std::wstring& fake_name) {
 typedef LONG(NTAPI* NtSetTimerResolutionFn)(ULONG, BOOLEAN, PULONG);
 
 void Stealth::set_timer_resolution() {
-    // Request 0.5ms timer resolution for precision sleep
     HMODULE ntdll = GetModuleHandleW(L"ntdll.dll");
     if (!ntdll) return;
 
@@ -138,7 +170,7 @@ void Stealth::set_timer_resolution() {
 
     if (NtSetTimerResolution) {
         ULONG actual;
-        NtSetTimerResolution(5000, TRUE, &actual);  // 5000 = 0.5ms in 100ns units
+        NtSetTimerResolution(5000, TRUE, &actual);  // 0.5ms
     }
 }
 
